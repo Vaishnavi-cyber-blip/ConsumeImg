@@ -7,7 +7,6 @@ python-dotenv==1.0.1
 Groq==0.9.0
 langchain-groq==0.1.9
 langchain-community==0.2.15
-tavily-api-wrapper
 requests==2.32.3
 re==2.2.1
 gunicorn 
