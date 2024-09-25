@@ -274,7 +274,12 @@ CORS(app)
 
 # Lazy initialization of EasyOCR reader to optimize memory
 def get_easyocr_reader():
-    return easyocr.Reader(['en'], gpu=False, worker=1)  # Limit to 1 CPU core, GPU disabled
+    try:
+        return easyocr.Reader(['en'], gpu=False)  # Limit to 1 CPU core, GPU disabled
+    except Exception as e:
+        app.logger.error(f"Error initializing EasyOCR reader: {e}")
+        raise e
+  # Limit to 1 CPU core, GPU disabled
 
 # Initialize Groq LLaMA model
 llm = ChatGroq(api_key=groq_api_key, model="llama3-8b-8192")
@@ -333,7 +338,7 @@ def extract_text():
         base_width = 1024  # Adjust this value based on performance
         w_percent = (base_width / float(image.size[0]))
         h_size = int((float(image.size[1]) * float(w_percent)))
-        image = image.resize((base_width, h_size), Image.ANTIALIAS)
+        image = image.resize((base_width, h_size), Image.Resampling.LANCZOS)
 
         # Convert the image to a numpy array for OCR processing
         image_np = np.array(image)
