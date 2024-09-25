@@ -270,7 +270,8 @@ client = Groq(api_key=groq_api_key)
 
 # Initialize Flask app and allow CORS
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "https://friendly-spork-2.onrender.com"}})
+
 
 # Lazy initialization of EasyOCR reader to optimize memory
 def get_easyocr_reader():
