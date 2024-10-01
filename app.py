@@ -245,15 +245,11 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
 import io
-import easyocr
-import numpy as np
 from dotenv import load_dotenv
-from groq import Groq
-from langchain_groq import ChatGroq
 from langchain_community.utilities.tavily_search import TavilySearchAPIWrapper
 from langchain_community.tools.tavily_search import TavilySearchResults
 import re
-import gc
+import google.generativeai as genai
 
 # Load environment variables
 load_dotenv()
@@ -261,31 +257,19 @@ load_dotenv()
 # Initialize logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Retrieve API keys from environment variables
-groq_api_key = os.getenv("GROQ_API_KEY")
+google_api_key = os.getenv("GOOGLE_API_KEY")
 tavily_api_key = os.getenv("TAVILY_API_KEY")
 
-# Initialize Groq client
-client = Groq(api_key=groq_api_key)
+genai.configure(api_key=google_api_key)
+model = genai.GenerativeModel('gemini-pro')
+
 
 # Initialize Flask app and allow CORS
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "https://friendly-spork-2.onrender.com"}})
 
 
-# Lazy initialization of EasyOCR reader to optimize memory
-def get_easyocr_reader():
-    try:
-        return easyocr.Reader(['en'], gpu=False)  # Limit to 1 CPU core, GPU disabled
-    except Exception as e:
-        app.logger.error(f"Error initializing EasyOCR reader: {e}")
-        raise e
-  # Limit to 1 CPU core, GPU disabled
-
-# Initialize Groq LLaMA model
-llm = ChatGroq(api_key=groq_api_key, model="llama3-8b-8192")
-
-# Tavily search implementation
+# Real-time news/articles search related to product
 def tavily_search(search_query: str):
     """Search the internet about a given topic using the Tavily API and return relevant results."""
     try:
@@ -323,65 +307,35 @@ def tavily_search(search_query: str):
 # Endpoint for extracting text from an image
 @app.route('/extract_text', methods=['POST'])
 def extract_text():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image file provided'}), 400
+
+    # Get the image file from the request
+    image_file = request.files['image']
+
+    # Open the image directly from the uploaded file (in memory)
+    img = Image.open(io.BytesIO(image_file.read()))
+
+    # Initialize the Gemini model
+    model = genai.GenerativeModel('gemini-1.5-flash')
+
+    # Generate content (extract text from image)
     try:
-        if 'image' not in request.files:
-            return jsonify({'error': 'No image file provided'}), 400
+        response = model.generate_content(["Extract and clean the text in formatted manner.", img], stream=True)
+        response.resolve()
+        extracted_text = response.text
 
-        image_file = request.files['image']
-        if image_file.filename == '':
-            return jsonify({'error': 'No selected file'}), 400
-
-        # Read the image file
-        image = Image.open(io.BytesIO(image_file.read()))
-        image = image.convert('RGB')
-
-        # Resize image to reduce memory usage
-        base_width = 1024  # Adjust this value based on performance
-        w_percent = (base_width / float(image.size[0]))
-        h_size = int((float(image.size[1]) * float(w_percent)))
-        image = image.resize((base_width, h_size), Image.Resampling.LANCZOS)
-
-        # Convert the image to a numpy array for OCR processing
-        image_np = np.array(image)
-
-        # Initialize EasyOCR reader only when needed
-        reader = get_easyocr_reader()
-
-        # Use EasyOCR to do OCR on the image
-        extracted_text_list = reader.readtext(image_np, detail=0)
-
-        # Combine the extracted text into a single string
-        extracted_text = " ".join(extracted_text_list)
-
-        # Prepare the prompt for Groq LLaMA processing
-        prompt = f"Format and clean the following extracted text: {extracted_text}"
-
-        # Use Groq's API to process the extracted text with the LLaMA model
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model="llama3-8b-8192",
-        )
-
-        # Get the processed text from the response
-        processed_text = chat_completion.choices[0].message.content
-
-        # Force garbage collection to free memory
-        gc.collect()
-
-        return jsonify({'text': processed_text})
-    
+        img.close()
+        return jsonify({'text': extracted_text}), 200
+        
     except Exception as e:
-        app.logger.error(f"Error in extract_text: {e}")
         return jsonify({'error': str(e)}), 500
+            
 
 # Endpoint for analyzing claims against extracted text
 @app.route('/claim_analyser', methods=['POST'])
 def claim_analyser():
+    
     try:
         data = request.get_json()
         extracted_text = data.get('extractedText', '')
@@ -392,52 +346,50 @@ def claim_analyser():
             return jsonify({'error': 'Both extracted text and user input are required'}), 400
 
         prompt = f"""
-        Compare the following product claims against the extracted text: "{extracted_text}". The claim to verify is: "{user_input}". Is the claim accurate? Provide a detailed and interactive analysis using the format below:
+        You are given the following product claim: "{user_input}".
+        The product description extracted from its label is: "{extracted_text}".
+
+        ### Instructions:
+        1. Analyze the accuracy of the claim based on the extracted text.
+        2. Provide an in-depth, step-by-step breakdown with facts.
+        3. Ensure the analysis includes:
+            - Claim accuracy check
+            - Ingredient review
+            - Nutritional facts review
+            - Overall observations
+            - Final conclusion with a verdict (Accurate, Partially Accurate, or Inaccurate)
+        4. Use the format given to display the output.
+
 
         **Example Analysis:**
         ---
         **Claim:**
-        This product is 100% organic.
+        "{user_input}"
 
         **🔍 Claim Accuracy:**
-        - The product contains some ingredients that are not certified organic.
-        - The packaging does not specify certification for organic ingredients.
-        - **🟡 Verdict**: This claim is **inaccurate** as not all ingredients are organic.
+        - Bullet-pointed facts based on comparison with extracted text.
 
         **🧪 Ingredient Review:**
-        - No evidence of added sugar in the ingredients list.
-        - Nutritional facts confirm no sugars listed.
-        - **🟢 Verdict**: The product is free from added sugars.
+        - Bullet-pointed review of the ingredients.
 
         **📊 Nutritional Facts Review:**
-        - The product is low in carbohydrates and fats, supporting the claim of being healthy.
-        - **🟡 Verdict**: The product is healthy but not organic as claimed.
+        - Bullet-pointed nutritional facts related to the claim.
 
         **🔍 Overall Observation:**
-        - The product appears to be a processed fruit drink with a combination of fruit concentrates and purees, rather than being made with 100% original fruits.
-        - The added sugar and processing steps do not align with the claim of being 100% pure or natural.
+        - General summary of findings.
 
         **⚖️ Conclusion:**
-        - The claim "Made with 100 percent original fruits" is **inaccurate**.
-        - The product's ingredients and nutritional facts do not support this claim.
-        - The presence of processed fruit concentrates, purees, and added sugar contradicts the idea of it being made with 100% original fruits.
+        - Verdict and reasons for the accuracy of the claim.
 
         ### Now analyze the claim: "{user_input}"
         ---
         """
-        
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model="llama3-8b-8192",
-            max_tokens=500
-        )
+       
+        response = model.generate_content(prompt)
+        analysis_text = response.text
+        print(analysis_text)
 
-        analysis_text = chat_completion.choices[0].message.content
+        # analysis_text = chat_completion.choices[0].message.content
 
         claim_match = re.search(r'\*\*Claim:\*\*\n(.*?)\n', analysis_text, re.S)
         claim_accuracy_match = re.search(r'\*\*🔍 Claim Accuracy:\*\*\n(.*?)\n\*\*🧪', analysis_text, re.S)
