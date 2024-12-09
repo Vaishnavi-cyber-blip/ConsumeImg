@@ -65,9 +65,15 @@ The application requires the following keys in a .env file:
 ```GOOGLE_API_KEY: API key for Google Gemini.```  
 ```TAVILY_API_KEY: API key for Tavily Search.```
 
+## Applicaton Artitecture
+![consu drawio](https://github.com/user-attachments/assets/3e2ce8ab-dd24-462e-bc73-832be76da3a1)
+
+
+
 ## 🌐 Website
 Try out the application live:
 [Consume Wisely](https://friendly-spork-2.onrender.com/)
+
 
 ## Interface
 
