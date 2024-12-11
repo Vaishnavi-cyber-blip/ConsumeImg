@@ -7,7 +7,7 @@ This Flask application serves as the backend for the Consume Wisely app, enablin
 - Uses Google Gemini AI to extract and clean text in a formatted manner.  
 
 ### 2. Claim Verification
-  - Compares user-provided product claims against the extracted text.  
+  - Compares user-provided product claims against the extracted label information.  
   - Generates an in-depth analysis including:  
           - Claim Accuracy  
           - Ingredient Review  
