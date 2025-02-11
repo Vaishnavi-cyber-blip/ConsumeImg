@@ -1,5 +1,5 @@
 # Flask Backend for Consume Wisely
-This Flask application serves as the backend for the Consume Wisely app, enabling product label analysis and claim verification. It leverages AI and external APIs to extract text, analyze claims, and provide real-time news.
+This Flask application serves as the backend for the Consume Wisely app, enabling product label analysis and claim verification. It leverages AI to extract text, analyze claims, and provide real-time news.
 
 ## Features
 ### 1. Text Extraction from Product Labels
