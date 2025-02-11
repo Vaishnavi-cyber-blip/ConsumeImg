@@ -13,7 +13,15 @@ This Flask application serves as the backend for the Consume Wisely app, enablin
           - Ingredient Review  
           - Nutritional Facts Review  
           - Overall Observations  
-          - Final Conclusion 
+          - Final Conclusion
+
+## Interface
+
+![consume4](https://github.com/user-attachments/assets/cf6c933c-814c-4305-ae9c-f07e418beb2b)
+
+## Applicaton Artitecture
+![consu drawio](https://github.com/user-attachments/assets/3e2ce8ab-dd24-462e-bc73-832be76da3a1)
+
 
 ### 3. Real-Time News Search
 - Fetches relevant articles and news about the product using the Tavily API.
@@ -65,19 +73,7 @@ The application requires the following keys in a .env file:
 ```GOOGLE_API_KEY: API key for Google Gemini.```  
 ```TAVILY_API_KEY: API key for Tavily Search.```
 
-## Applicaton Artitecture
-![consu drawio](https://github.com/user-attachments/assets/3e2ce8ab-dd24-462e-bc73-832be76da3a1)
-
-
-
 ## 🌐 Website
 Try out the application live:
 [Consume Wisely](https://friendly-spork-2.onrender.com/)
 
-
-## Interface
-
-![consume4](https://github.com/user-attachments/assets/cf6c933c-814c-4305-ae9c-f07e418beb2b)
-
-
-  
